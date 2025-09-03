@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1",
+    "name": "Andrés",
+    "lastname": "Jácome",
+    "email": "andres@example.com",
+    "allocated": true,
+    "position": "Developer"
+  },
+  {
+    "id": "2",
+    "name": "Diego",
+    "lastname": "García",
+    "email": "diego@example.com",
+    "allocated": true,
+    "position": "QA Engineer"
+  }
+]
