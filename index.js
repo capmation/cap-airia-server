@@ -8,9 +8,14 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://cap-airia-server.onrender.com",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: false,
@@ -26,6 +31,7 @@ if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY || !AIRIA_USER_ID) {
   process.exit(1);
 }
 
+// Airia API Chat
 app.post("/api/agent/chat", async (req, res) => {
   try {
     const userInput = req.body?.text ?? "Example user input";
@@ -53,6 +59,7 @@ app.post("/api/agent/chat", async (req, res) => {
   }
 });
 
+//HOOKS
 app.get("/api/projects", (req, res) => {
   try {
     const filePath = path.join(__dirname, "/datasource/projects-db.json");
