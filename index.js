@@ -10,7 +10,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://cap-airia-server.onrender.com",
+  "https://airia-chat-gvyl.onrender.com",
 ];
 
 app.use(
