@@ -14,5 +14,13 @@
     "email": "diego@example.com",
     "allocated": true,
     "position": "QA Engineer"
+  },
+  {
+    "id": "3",
+    "name": "Carl",
+    "lastname": "Smidth",
+    "email": "cosmo@example.com",
+    "allocated": false,
+    "position": "Project Manager"
   }
 ]
