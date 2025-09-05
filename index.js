@@ -161,5 +161,34 @@ app.delete("/api/projects/:projectId/team-members/:userId", (req, res) => {
   }
 });
 
+app.put("/api/projects/:projectId/team-members/:userId", (req, res) => {
+  try {
+    const { projectId, userId } = req.params;
+    const filePath = path.join(__dirname, "/datasource/projects-db.json");
 
-app.listen(PORT, () => console.log(`✅ Airia proxy running on http://localhost:${PORT}`));
+    const data = fs.readFileSync(filePath, "utf-8");
+    const projects = JSON.parse(data);
+
+    const project = projects.find(p => p.id === projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const userIdNum = Number(userId);
+
+    if (project.userIds.includes(userIdNum)) {
+      return res.status(400).json({ error: "Team member already assined to this project" });
+    }
+    project.userIds.push(userIdNum);
+    fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
+
+    res.json({ message: `Team member ${userId} added to the project ${projectId}`, project });
+  } catch (err) {
+    console.error("Error adding team member to the project:", err);
+    res.status(500).json({ error: "Error adding team member to the project" });
+  }
+});
+
+
+
+app.listen(PORT, () => console.log(`Airia proxy running on http://localhost:${PORT}`));
