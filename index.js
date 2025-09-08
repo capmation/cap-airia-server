@@ -10,7 +10,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  UI_CHAT_AIRIA,
+  AIRIA_CHAT_URL,
 ];
 
 app.use(
