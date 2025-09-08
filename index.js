@@ -8,6 +8,11 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+
+
+const { AIRIA_CHAT_URL, AIRIA_USER_ID, AIRIA_AGENT_ENDPOINT, AIRIA_API_KEY, PORT = 8787 } = process.env;
+const __dirname = path.resolve();
+
 const allowedOrigins = [
   "http://localhost:5173",
   AIRIA_CHAT_URL,
@@ -21,10 +26,6 @@ app.use(
     credentials: false,
   })
 );
-
-const { AIRIA_USER_ID, AIRIA_AGENT_ENDPOINT, AIRIA_API_KEY, PORT = 8787 } = process.env;
-
-const __dirname = path.resolve();
 
 if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY || !AIRIA_USER_ID) {
   console.error("Missing AIRIA_AGENT_ENDPOINT or AIRIA_API_KEY en .env");
