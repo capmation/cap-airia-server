@@ -65,6 +65,7 @@ app.get("/api/projects", (req, res) => {
     const filePath = path.join(__dirname, "/datasource/projects-db.json");
     const data = fs.readFileSync(filePath, "utf-8");
     const projects = JSON.parse(data);
+    console.log('projects data', {projects})
     res.json({ projects });
   } catch (err) {
     console.error("❌ Error fetching projects.json:", err);
