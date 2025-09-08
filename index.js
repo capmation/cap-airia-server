@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 const app = express();
@@ -10,7 +11,17 @@ app.use(express.json());
 
 
 
-const { AIRIA_CHAT_URL, AIRIA_USER_ID, AIRIA_AGENT_ENDPOINT, AIRIA_API_KEY, PORT = 8787 } = process.env;
+const { 
+  AIRIA_CHAT_URL, 
+  AIRIA_AGENT_ENDPOINT, 
+  AIRIA_API_KEY,
+  JWT_SECRET,
+  DEMO_USER,
+  DEMO_PASS,
+  B2B_USER,
+  B2B_PASS,
+  PORT = 8787 
+} = process.env;
 const __dirname = path.resolve();
 
 const allowedOrigins = [
@@ -27,13 +38,46 @@ app.use(
   })
 );
 
-if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY || !AIRIA_USER_ID) {
+if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY ) {
   console.error("Missing AIRIA_AGENT_ENDPOINT or AIRIA_API_KEY en .env");
   process.exit(1);
 }
 
+//Auth middleware
+function authRequired(req, res, next) {
+  const auth = req.headers.authorization || "";
+  const [, token] = auth.split(" ");
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
+
+//Auth route
+app.post("/api/auth/login", (req, res) => {
+  const { username, password } = req.body || {};
+  if (username === DEMO_USER && password === DEMO_PASS || 
+    username === B2B_USER && password === B2B_PASS ) {
+    
+      console.log('Login user', { username, password } );
+    
+      const token = jwt.sign(
+      { sub: "demo-user-1", username }, 
+        JWT_SECRET,
+        { expiresIn: "2h" }
+      );
+      return res.json({ token });
+  }
+  return res.status(401).json({ error: "Invalid credentials" });
+});
+
 // Airia API Chat
-app.post("/api/agent/chat", async (req, res) => {
+app.post("/api/agent/chat", authRequired, async (req, res) => {
   try {
     const userInput = req.body?.text ?? "Example user input";
 
@@ -65,8 +109,7 @@ app.get("/api/projects", (req, res) => {
   try {
     const filePath = path.join(__dirname, "/datasource/projects-db.json");
     const data = fs.readFileSync(filePath, "utf-8");
-    const projects = JSON.parse(data);
-    console.log('projects data', {projects})
+    const projects = JSON.parse(data);    
     res.json({ projects });
   } catch (err) {
     console.error("Error fetching projects.json:", err);
