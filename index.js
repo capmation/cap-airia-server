@@ -10,7 +10,7 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://airia-chat-gvyl.onrender.com",
+  UI_CHAT_AIRIA,
 ];
 
 app.use(
@@ -27,7 +27,7 @@ const { AIRIA_USER_ID, AIRIA_AGENT_ENDPOINT, AIRIA_API_KEY, PORT = 8787 } = proc
 const __dirname = path.resolve();
 
 if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY || !AIRIA_USER_ID) {
-  console.error("❌ Falta AIRIA_AGENT_ENDPOINT o AIRIA_API_KEY en .env");
+  console.error("Missing AIRIA_AGENT_ENDPOINT or AIRIA_API_KEY en .env");
   process.exit(1);
 }
 
@@ -68,8 +68,8 @@ app.get("/api/projects", (req, res) => {
     console.log('projects data', {projects})
     res.json({ projects });
   } catch (err) {
-    console.error("❌ Error fetching projects.json:", err);
-    res.status(500).json({ error: "Error leyendo projects.json" });
+    console.error("Error fetching projects.json:", err);
+    res.status(500).json({ error: "Error fetching projects" });
   }
 });
 
@@ -80,8 +80,8 @@ app.get("/api/team-members", (req, res) => {
     const teamMembers = JSON.parse(data);
     res.json({ teamMembers });
   } catch (err) {
-    console.error("❌ Error fetching team-members.json:", err);
-    res.status(500).json({ error: "Error leyendo team-members.json" });
+    console.error("Error fetching team-members.json:", err);
+    res.status(500).json({ error: "Error fetching team-members.json" });
   }
 });
 
@@ -99,17 +99,17 @@ app.post("/api/team-members/create", (req, res) => {
     }
 
     if (teamMembers.find(m => m.id === id)) {
-      return res.status(400).json({ error: "El teamMember con ese id ya existe" });
+      return res.status(400).json({ error: "Team member with this id already exist" });
     }
 
     const newMember = { id, name, lastname, email, allocated, position };
     teamMembers.push(newMember);
     fs.writeFileSync(filePath, JSON.stringify(teamMembers, null, 2));
 
-    res.status(201).json({ message: "Team member creado con éxito", teamMember: newMember });
+    res.status(201).json({ message: "Team member created successfuly", teamMember: newMember });
   } catch (err) {
-    console.error("❌ Error creando team member:", err);
-    res.status(500).json({ error: "Error creando team member" });
+    console.error("Error creating team member:", err);
+    res.status(500).json({ error: "Error creating team member" });
   }
 });
 
@@ -126,7 +126,7 @@ app.post("/api/projects/create", (req, res) => {
     }
 
     if (projects.find(p => p.id === id)) {
-      return res.status(400).json({ error: "Project id already exist" });
+      return res.status(400).json({ error: "Project id already exists" });
     }
 
     const newProject = { id, name, userIds: userIds || [] };
