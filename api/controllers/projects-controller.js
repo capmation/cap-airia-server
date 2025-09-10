@@ -1,6 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import { emit } from "../utils/sockets.js";
 
 const router = express.Router();
 const __dirname = path.resolve();
@@ -37,6 +38,8 @@ router.post("/create", (req, res) => {
     projects.push(newProject);
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
+    // Realtime event
+    emit("project:created", newProject);
     res
       .status(201)
       .json({ message: "Project created successfully", project: newProject });
@@ -69,6 +72,8 @@ router.delete("/:projectId/team-members/:userId", (req, res) => {
     project.userIds.splice(index, 1);
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
+    // Realtime event
+    emit("project:deleted", project);
     res.json({
       message: `Team member ${userId} removed from project ${projectId}`,
       project,
@@ -104,6 +109,8 @@ router.put("/:projectId/team-members/:userId", (req, res) => {
     project.userIds.push(userIdNum);
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
+    // Realtime event
+    emit("project:updated", project);
     res.json({
       message: `Team member ${userId} added to the project ${projectId}`,
       project,
