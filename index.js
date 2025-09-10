@@ -1,28 +1,27 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import fs from "fs";
-import path from "path";
-import jwt from "jsonwebtoken";
+import http from "http";
+import { initSocket } from "./api/utils/sockets.js";
+
+// Controllers
+import authRouter, { authRequired } from "./api/controllers/auth-controller.js";
+import airiaRouter from "./api/controllers/airia-controller.js";
+import projectsRouter from "./api/controllers/projects-controller.js";
+import teamMembersRouter from "./api/controllers/team-members-controller.js";
 
 dotenv.config();
+
 const app = express();
 app.use(express.json());
 
-
-
-const { 
-  AIRIA_CHAT_URL, 
-  AIRIA_AGENT_ENDPOINT, 
+const {
+  AIRIA_CHAT_URL,
+  AIRIA_AGENT_ENDPOINT,
   AIRIA_API_KEY,
   JWT_SECRET,
-  DEMO_USER,
-  DEMO_PASS,
-  B2B_USER,
-  B2B_PASS,
-  PORT = 8787 
+  PORT = 8787,
 } = process.env;
-const __dirname = path.resolve();
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -32,215 +31,40 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: false,
   })
 );
 
-if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY ) {
+if (!AIRIA_AGENT_ENDPOINT || !AIRIA_API_KEY) {
   console.error("Missing AIRIA_AGENT_ENDPOINT or AIRIA_API_KEY en .env");
   process.exit(1);
 }
-
-//Auth middleware
-function authRequired(req, res, next) {
-  const auth = req.headers.authorization || "";
-  const [, token] = auth.split(" ");
-  if (!token) return res.status(401).json({ error: "Missing token" });
-
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token" });
-  }
+if (!JWT_SECRET) {
+  console.error("Missing JWT_SECRET en .env");
+  process.exit(1);
 }
 
-//Auth route
-app.post("/api/auth/login", (req, res) => {
-  const { username, password } = req.body || {};
-  if (username === DEMO_USER && password === DEMO_PASS || 
-    username === B2B_USER && password === B2B_PASS ) {
-    
-      console.log('Login user', { username, password } );
-    
-      const token = jwt.sign(
-      { sub: "demo-user-1", username }, 
-        JWT_SECRET,
-        { expiresIn: "2h" }
-      );
-      return res.json({ token });
-  }
-  return res.status(401).json({ error: "Invalid credentials" });
+// ---- HTTP server + WebSockets ----
+const server = http.createServer(app);
+initSocket({
+  server,
+  allowedOrigins,
+  jwtSecret: JWT_SECRET,
 });
 
-// Airia API Chat
-app.post("/api/agent/chat", authRequired, async (req, res) => {
-  try {
-    const userInput = req.body?.text ?? "Example user input";
+// ---- Cotrollers ----
+app.use("/api/auth", authRouter);                 // POST /api/auth/login
+app.use("/api/agent", authRequired, airiaRouter); // POST /api/agent/chat 
+app.use("/api/projects", projectsRouter);         // GET /, POST /create, PUT/DELETE members
+app.use("/api/team-members", teamMembersRouter);  // GET /, POST /create
 
-    const body = {
-      userId: null,
-      userInput,
-      asyncOutput: false
-    };
+// Health
+app.get("/health", (_req, res) => res.send("ok"));
 
-    const r = await fetch(AIRIA_AGENT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": AIRIA_API_KEY
-      },
-      body: JSON.stringify(body)
-    });
-
-    const text = await r.text();
-    res.status(r.status).send(text);
-  } catch (err) {
-    console.error("Proxy error:", err);
-    res.status(500).json({ error: "Proxy error calling Airia" });
-  }
+// Start
+server.listen(PORT, () => {
+  console.log(`HTTP + WS running on http://localhost:${PORT}`);
+  console.log(`Allowed origins: ${allowedOrigins.filter(Boolean).join(", ")}`);
 });
-
-//HOOKS
-app.get("/api/projects", (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "/datasource/projects-db.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    const projects = JSON.parse(data);    
-    res.json({ projects });
-  } catch (err) {
-    console.error("Error fetching projects.json:", err);
-    res.status(500).json({ error: "Error fetching projects" });
-  }
-});
-
-app.get("/api/team-members", (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "/datasource/team-members-db.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    const teamMembers = JSON.parse(data);
-    res.json({ teamMembers });
-  } catch (err) {
-    console.error("Error fetching team-members.json:", err);
-    res.status(500).json({ error: "Error fetching team-members.json" });
-  }
-});
-
-
-app.post("/api/team-members/create", (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "/datasource/team-members-db.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    const teamMembers = JSON.parse(data);
-
-    const { id, name, lastname, email, allocated, position } = req.body;
-
-    if (!id || !name || !lastname || !email) {
-      return res.status(400).json({ error: "id, name, lastname y email are required" });
-    }
-
-    if (teamMembers.find(m => m.id === id)) {
-      return res.status(400).json({ error: "Team member with this id already exist" });
-    }
-
-    const newMember = { id, name, lastname, email, allocated, position };
-    teamMembers.push(newMember);
-    fs.writeFileSync(filePath, JSON.stringify(teamMembers, null, 2));
-
-    res.status(201).json({ message: "Team member created successfuly", teamMember: newMember });
-  } catch (err) {
-    console.error("Error creating team member:", err);
-    res.status(500).json({ error: "Error creating team member" });
-  }
-});
-
-app.post("/api/projects/create", (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "/datasource/projects-db.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    const projects = JSON.parse(data);
-
-    const { id, name, userIds } = req.body;
-
-    if (!id || !name) {
-      return res.status(400).json({ error: "id and name are required" });
-    }
-
-    if (projects.find(p => p.id === id)) {
-      return res.status(400).json({ error: "Project id already exists" });
-    }
-
-    const newProject = { id, name, userIds: userIds || [] };
-    projects.push(newProject);
-    fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
-
-    res.status(201).json({ message: "Project created successfully", project: newProject });
-  } catch (err) {
-    console.error("Error creating project:", err);
-    res.status(500).json({ error: "Error creating project" });
-  }
-});
-
-app.delete("/api/projects/:projectId/team-members/:userId", (req, res) => {
-  try {
-    const { projectId, userId } = req.params;
-    const filePath = path.join(__dirname, "/datasource/projects-db.json");
-
-    const data = fs.readFileSync(filePath, "utf-8");
-    const projects = JSON.parse(data);
-
-    const project = projects.find(p => p.id === projectId);
-    if (!project) {
-      return res.status(404).json({ error: "Project not found" });
-    }
-
-    const index = project.userIds.indexOf(Number(userId));
-    if (index === -1) {
-      return res.status(404).json({ error: "Team member not found for this project" });
-    }
-
-    project.userIds.splice(index, 1);
-
-    fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
-
-    res.json({ message: `Team member ${userId} removed from project ${projectId}`, project });
-  } catch (err) {
-    console.error("Error removing team member from project:", err);
-    res.status(500).json({ error: "Error removing team member from project" });
-  }
-});
-
-app.put("/api/projects/:projectId/team-members/:userId", (req, res) => {
-  try {
-    const { projectId, userId } = req.params;
-    const filePath = path.join(__dirname, "/datasource/projects-db.json");
-
-    const data = fs.readFileSync(filePath, "utf-8");
-    const projects = JSON.parse(data);
-
-    const project = projects.find(p => p.id === projectId);
-    if (!project) {
-      return res.status(404).json({ error: "Project not found" });
-    }
-
-    const userIdNum = Number(userId);
-
-    if (project.userIds.includes(userIdNum)) {
-      return res.status(400).json({ error: "Team member already assined to this project" });
-    }
-    project.userIds.push(userIdNum);
-    fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
-
-    res.json({ message: `Team member ${userId} added to the project ${projectId}`, project });
-  } catch (err) {
-    console.error("Error adding team member to the project:", err);
-    res.status(500).json({ error: "Error adding team member to the project" });
-  }
-});
-
-
-
-app.listen(PORT, () => console.log(`Airia proxy running on http://localhost:${PORT}`));

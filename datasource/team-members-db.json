@@ -22,5 +22,13 @@
     "email": "cosmo@example.com",
     "allocated": false,
     "position": "Project Manager"
+  },
+  {
+    "id": "6",
+    "name": "Carl",
+    "lastname": "Smidth",
+    "email": "cosmo@example.com",
+    "allocated": false,
+    "position": "Project Manager"
   }
 ]
