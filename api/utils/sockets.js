@@ -47,6 +47,13 @@ export function initSocket({
     const u = socket.data.user?.username || "anon";
     console.log(`socket connected: ${socket.id} (user: ${u})`);
 
+    // Auto-join rooms
+    socket.join("global");
+    const userId = socket.data.user?.id;
+    if (userId) {
+      socket.join(getUserRoom(userId));
+    }
+
     socket.on("ping:client", () => socket.emit("pong:server", Date.now()));
 
     socket.on("room:join", (room) => {
@@ -87,6 +94,7 @@ export function emit(event, payload, room) {
   room ? io.to(room).emit(event, payload) : io.emit(event, payload);
 }
 
+
 export function joinRoom(socket, room) { socket.join(room); }
 export function leaveRoom(socket, room) { socket.leave(room); }
 
@@ -107,3 +115,15 @@ function makeRateLimiter(max = 15, windowMs = 5000) {
     return bucket.count <= max;
   };
 }
+
+/** Emit to a room (default "global") EXCEPT all sockets of the given userId */
+export function emitExceptUser(event, payload, { room = "global", userId } = {}) {
+  const io = getIO();
+  if (userId) {
+    io.to(room).except(getUserRoom(userId)).emit(event, payload); // Socket.IO v4+
+  } else {
+    io.to(room).emit(event, payload);
+  }
+}
+
+export const getUserRoom = (userId) => `user:${userId}`;
