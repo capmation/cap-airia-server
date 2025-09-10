@@ -36,8 +36,9 @@ router.post("/login", (req, res) => {
   const matchesB2B = username === B2B_USER && password === B2B_PASS;
   console.log({ username, password, matchesDemo, matchesB2B, DEMO_USER, DEMO_PASS })
   if (matchesDemo || matchesB2B) {
+    const subject = username;
     const token = jwt.sign(
-      { sub: "demo-user-1", username },
+      { sub: subject, username },
       JWT_SECRET,
       { expiresIn: "2h" }
     );

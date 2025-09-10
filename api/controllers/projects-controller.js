@@ -1,7 +1,8 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { emit } from "../utils/sockets.js";
+import { emitExceptUser } from "../utils/sockets.js";
+import { authRequired } from "./auth-controller.js";
 
 const router = express.Router();
 const __dirname = path.resolve();
@@ -20,7 +21,7 @@ router.get("/", (_req, res) => {
 });
 
 // POST /api/projects/create
-router.post("/create", (req, res) => {
+router.post("/create", authRequired, (req, res) => {
   try {
     const data = fs.readFileSync(filePath, "utf-8");
     const projects = JSON.parse(data);
@@ -39,7 +40,11 @@ router.post("/create", (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
     // Realtime event
-    emit("project:created", newProject);
+    emitExceptUser("project:created", newProject, {
+      userId: req.user?.sub,
+      room: "global",
+    });
+
     res
       .status(201)
       .json({ message: "Project created successfully", project: newProject });
@@ -50,7 +55,7 @@ router.post("/create", (req, res) => {
 });
 
 // DELETE /api/projects/:projectId/team-members/:userId
-router.delete("/:projectId/team-members/:userId", (req, res) => {
+router.delete("/:projectId/team-members/:userId", authRequired, (req, res) => {
   try {
     const { projectId, userId } = req.params;
 
@@ -73,7 +78,11 @@ router.delete("/:projectId/team-members/:userId", (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
     // Realtime event
-    emit("project:deleted", project);
+    emitExceptUser("project:deleted", project, {
+      userId: req.user?.sub,
+      room: "global",
+    });
+    
     res.json({
       message: `Team member ${userId} removed from project ${projectId}`,
       project,
@@ -87,7 +96,7 @@ router.delete("/:projectId/team-members/:userId", (req, res) => {
 });
 
 // PUT /api/projects/:projectId/team-members/:userId
-router.put("/:projectId/team-members/:userId", (req, res) => {
+router.put("/:projectId/team-members/:userId", authRequired, (req, res) => {
   try {
     const { projectId, userId } = req.params;
 
@@ -110,7 +119,11 @@ router.put("/:projectId/team-members/:userId", (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
     // Realtime event
-    emit("project:updated", project);
+    emitExceptUser("project:updated", project, {
+      userId: req.user?.sub,
+      room: "global",
+    });
+
     res.json({
       message: `Team member ${userId} added to the project ${projectId}`,
       project,
