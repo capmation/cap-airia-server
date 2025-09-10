@@ -1,8 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { emitExceptUser } from "../utils/sockets.js";
-import { authRequired } from "./auth-controller.js";
+import { emit } from "../utils/sockets.js";
 
 const router = express.Router();
 const __dirname = path.resolve();
@@ -21,7 +20,7 @@ router.get("/", (_req, res) => {
 });
 
 // POST /api/team-members/create
-router.post("/create", authRequired, (req, res) => {
+router.post("/create", (req, res) => {
   try {
     const data = fs.readFileSync(filePath, "utf-8");
     const teamMembers = JSON.parse(data);
@@ -45,10 +44,7 @@ router.post("/create", authRequired, (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(teamMembers, null, 2));
 
     // Realtime event
-    emitExceptUser("team-member:created", newMember, {
-      userId: req.user?.sub,
-      room: "global",
-    });
+    emit("team-member:created", newMember,);
 
     res
       .status(201)
