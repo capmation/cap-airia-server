@@ -112,7 +112,7 @@ router.put("/:projectId/team-members/:userId", (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(projects, null, 2));
 
     // Realtime event
-    emitExceptUser("project:updated", project);
+    emit("project:updated", project);
 
     res.json({
       message: `Team member ${userId} added to the project ${projectId}`,
